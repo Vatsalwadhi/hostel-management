@@ -1,181 +1,117 @@
-/*
- * Mock API Service Layer
- * Simulates async API calls using Promise + setTimeout
- * All data operations go through this service
- */
+import axios from 'axios';
 
-import {
-  students,
-  staffMembers,
-  admins,
-  complaints as initialComplaints,
-  feedbacks as initialFeedbacks,
-  categories,
-  priorities,
-  statuses,
-} from './mockData';
+// Use environment variable or default local URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// In-memory data store (simulates database)
-let complaintsStore = [...initialComplaints];
-let feedbacksStore = [...initialFeedbacks];
-let studentsStore = [...students];
-
-const delay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 /* ── Authentication ────────────────────────────────────────── */
 
 export const loginUser = async (email, password, role) => {
-  await delay(800);
-  let userPool = [];
-  if (role === 'student') userPool = studentsStore;
-  else if (role === 'staff') userPool = staffMembers;
-  else if (role === 'admin') userPool = admins;
-
-  const user = userPool.find(
-    (u) =>
-      (u.email === email || u.regNumber === email) && u.password === password
-  );
-
-  if (!user) throw new Error('Invalid credentials. Please try again.');
-  const { password: _, ...safeUser } = user;
-  return safeUser;
+  try {
+    const response = await api.post('/auth/login', { email, password, role });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Login failed');
+  }
 };
 
 export const registerStudent = async (data) => {
-  await delay(800);
-  const exists = studentsStore.find(
-    (s) => s.email === data.email || s.regNumber === data.regNumber
-  );
-  if (exists) throw new Error('Student with this email or registration number already exists.');
-
-  const newStudent = {
-    id: `STU${String(studentsStore.length + 1).padStart(3, '0')}`,
-    ...data,
-    role: 'student',
-  };
-  studentsStore.push(newStudent);
-  return newStudent;
+  try {
+    const response = await api.post('/auth/register', data);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Registration failed');
+  }
 };
 
 /* ── Complaints ────────────────────────────────────────────── */
 
 export const getComplaints = async () => {
-  await delay(400);
-  return [...complaintsStore];
+  const response = await api.get('/complaints');
+  return response.data;
 };
 
 export const getComplaintsByStudent = async (studentId) => {
-  await delay(400);
-  return complaintsStore.filter((c) => c.studentId === studentId);
+  const response = await api.get(`/complaints/student/${studentId}`);
+  return response.data;
 };
 
 export const getComplaintsByStaff = async (staffId) => {
-  await delay(400);
-  return complaintsStore.filter((c) => c.assignedStaff === staffId);
+  const response = await api.get(`/complaints/staff/${staffId}`);
+  return response.data;
 };
 
 export const createComplaint = async (complaint) => {
-  await delay(600);
-  const newComplaint = {
-    id: `CMP${String(complaintsStore.length + 1).padStart(3, '0')}`,
-    ...complaint,
-    status: 'Pending',
-    priority: 'Medium',
-    assignedStaff: null,
-    assignedStaffName: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    resolutionNotes: '',
-  };
-  complaintsStore.push(newComplaint);
-  return newComplaint;
+  const response = await api.post('/complaints', complaint);
+  return response.data;
 };
 
 export const updateComplaintStatus = async (complaintId, status, resolutionNotes = '') => {
-  await delay(500);
-  const idx = complaintsStore.findIndex((c) => c.id === complaintId);
-  if (idx === -1) throw new Error('Complaint not found.');
-  complaintsStore[idx] = {
-    ...complaintsStore[idx],
-    status,
-    resolutionNotes: resolutionNotes || complaintsStore[idx].resolutionNotes,
-    updatedAt: new Date().toISOString(),
-  };
-  return complaintsStore[idx];
+  const response = await api.patch(`/complaints/${complaintId}/status`, { status, resolutionNotes });
+  return response.data;
 };
 
 export const assignStaff = async (complaintId, staffId) => {
-  await delay(500);
-  const idx = complaintsStore.findIndex((c) => c.id === complaintId);
-  if (idx === -1) throw new Error('Complaint not found.');
+  // Fetch staff name locally if needed, or pass it. 
+  // Let's assume the frontend passes what we need, but here we just pass staffId.
+  // Actually, wait, let's fetch staff to get the name
+  const staffMembers = await getStaffMembers();
   const staff = staffMembers.find((s) => s.id === staffId);
-  if (!staff) throw new Error('Staff member not found.');
-  complaintsStore[idx] = {
-    ...complaintsStore[idx],
-    assignedStaff: staffId,
-    assignedStaffName: staff.name,
-    updatedAt: new Date().toISOString(),
-  };
-  return complaintsStore[idx];
+  const staffName = staff ? staff.name : null;
+
+  const response = await api.patch(`/complaints/${complaintId}/assign`, { staffId, staffName });
+  return response.data;
 };
 
 export const setPriority = async (complaintId, priority) => {
-  await delay(300);
-  const idx = complaintsStore.findIndex((c) => c.id === complaintId);
-  if (idx === -1) throw new Error('Complaint not found.');
-  complaintsStore[idx] = {
-    ...complaintsStore[idx],
-    priority,
-    updatedAt: new Date().toISOString(),
-  };
-  return complaintsStore[idx];
+  const response = await api.patch(`/complaints/${complaintId}/priority`, { priority });
+  return response.data;
 };
 
 /* ── Feedback ──────────────────────────────────────────────── */
 
 export const getFeedbacks = async () => {
-  await delay(400);
-  return [...feedbacksStore];
+  const response = await api.get('/feedbacks');
+  return response.data;
 };
 
 export const submitFeedback = async (feedback) => {
-  await delay(500);
-  const newFeedback = {
-    id: `FDB${String(feedbacksStore.length + 1).padStart(3, '0')}`,
-    ...feedback,
-    createdAt: new Date().toISOString(),
-  };
-  feedbacksStore.push(newFeedback);
-  return newFeedback;
+  const response = await api.post('/feedbacks', feedback);
+  return response.data;
 };
 
 /* ── Staff & Reference Data ───────────────────────────────── */
 
 export const getStaffMembers = async () => {
-  await delay(300);
-  return staffMembers.map(({ password, ...s }) => s);
+  const response = await api.get('/staff');
+  return response.data;
 };
 
+// Hardcoded reference data that rarely changes
 export const getCategories = async () => {
-  await delay(100);
-  return categories;
+  return ['Electrical', 'Plumbing', 'WiFi', 'Furniture', 'Sanitation', 'Other'];
 };
 
 export const getPriorities = async () => {
-  await delay(100);
-  return priorities;
+  return ['Low', 'Medium', 'High'];
 };
 
 export const getStatuses = async () => {
-  await delay(100);
-  return statuses;
+  return ['Pending', 'In Progress', 'Resolved'];
 };
 
 /* ── Analytics (Admin) ─────────────────────────────────────── */
 
 export const getAnalytics = async () => {
-  await delay(500);
-  const all = complaintsStore;
+  const all = await getComplaints();
+  const categories = await getCategories();
+  
   return {
     total: all.length,
     pending: all.filter((c) => c.status === 'Pending').length,
