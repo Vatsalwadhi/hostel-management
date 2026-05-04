@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineBars3,
@@ -8,6 +8,7 @@ import {
   HiOutlineArrowRightOnRectangle,
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
+import { getComplaintsByStudent, getComplaintsByStaff, getComplaints } from '../../services/api';
 
 /**
  * Top Navbar – displays user info, dark mode toggle, notification bell, logout.
@@ -16,10 +17,67 @@ const Navbar = ({ onMenuToggle }) => {
   const { user, logout, darkMode, toggleDarkMode } = useAuth();
   const navigate = useNavigate();
   const [showNotif, setShowNotif] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifRef = useRef(null);
+
+  // Fetch real notifications based on role
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        let complaints = [];
+        if (user?.role === 'student') {
+          complaints = await getComplaintsByStudent(user.id);
+        } else if (user?.role === 'staff') {
+          complaints = await getComplaintsByStaff(user.id);
+        } else if (user?.role === 'admin') {
+          complaints = await getComplaints();
+        }
+
+        const notifs = [];
+        // Recent pending complaints
+        const pending = complaints.filter(c => c.status === 'Pending').slice(0, 2);
+        pending.forEach(c => {
+          notifs.push({ id: c.id || c._id, text: `⏳ ${c.category} complaint is still pending`, type: 'warning' });
+        });
+        // Recent in-progress
+        const inProgress = complaints.filter(c => c.status === 'In Progress').slice(0, 2);
+        inProgress.forEach(c => {
+          notifs.push({ id: c.id || c._id, text: `🔧 ${c.category} complaint is being worked on`, type: 'info' });
+        });
+        // Recent resolved
+        const resolved = complaints.filter(c => c.status === 'Resolved').slice(0, 1);
+        resolved.forEach(c => {
+          notifs.push({ id: c.id || c._id, text: `✅ ${c.category} complaint has been resolved`, type: 'success' });
+        });
+
+        setNotifications(notifs.slice(0, 5));
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    };
+    if (user) fetchNotifications();
+  }, [user]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotif(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const typeStyles = {
+    warning: 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200',
+    info: 'bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200',
+    success: 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200',
   };
 
   return (
@@ -51,32 +109,37 @@ const Navbar = ({ onMenuToggle }) => {
         </button>
 
         {/* Notification bell */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotif(!showNotif)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
           >
             <HiOutlineBell className="h-5 w-5" />
-            {/* Red dot */}
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
+            {/* Red dot – only show if there are notifications */}
+            {notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
+            )}
           </button>
 
           {showNotif && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-4 z-50">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white mb-2">
+            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-4 z-50">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white mb-3">
                 Notifications
               </p>
-              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <p className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                  🔧 Complaint CMP002 status updated to In Progress
-                </p>
-                <p className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                  ✅ Complaint CMP003 has been resolved
-                </p>
-                <p className="p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
-                  📋 New complaint CMP006 assigned to staff
-                </p>
-              </div>
+              {notifications.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No new notifications.</p>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  {notifications.map((n) => (
+                    <p
+                      key={n.id}
+                      className={`p-2.5 rounded-lg ${typeStyles[n.type] || typeStyles.info}`}
+                    >
+                      {n.text}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

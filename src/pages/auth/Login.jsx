@@ -129,11 +129,11 @@ const Login = () => {
         </form>
 
         {/* Demo credentials */}
-        <div className="mt-6 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 text-xs text-gray-500 dark:text-gray-400">
-          <p className="font-semibold mb-1">Demo Credentials:</p>
-          <p>Student: rahul@university.edu / password123</p>
-          <p>Staff: rajesh@university.edu / password123</p>
-          <p>Admin: admin@university.edu / admin123</p>
+        <div className="mt-6 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 text-xs text-gray-600 dark:text-gray-300">
+          <p className="font-semibold mb-1 text-gray-800 dark:text-white">Demo Credentials:</p>
+          <p>Student: <span className="font-mono">vats</span> / <span className="font-mono">vats1234</span></p>
+          <p>Staff: <span className="font-mono">vats@staff.edu</span> / <span className="font-mono">vats1234</span></p>
+          <p>Admin: <span className="font-mono">vats@admin.edu</span> / <span className="font-mono">vats1234</span></p>
         </div>
       </div>
     </div>

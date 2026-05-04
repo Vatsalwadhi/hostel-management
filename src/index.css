@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Apply Inter globally */
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
 /* Custom animations */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -13,5 +21,34 @@
 
 /* Smooth transitions for dark mode */
 * {
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* Fix table text in dark mode */
+.dark table td {
+  color: #d1d5db; /* gray-300 */
+}
+.dark table th {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Fix select dropdown options in dark mode */
+.dark select option {
+  background-color: #374151;
+  color: #f3f4f6;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
 }

@@ -5,6 +5,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import InputField from '../../components/common/InputField';
 import Spinner from '../../components/common/Spinner';
+import { HiOutlineCloudArrowUp, HiOutlineXMark } from 'react-icons/hi2';
 
 const categories = ['Electrical', 'Plumbing', 'WiFi', 'Furniture', 'Sanitation', 'Other'];
 
@@ -15,6 +16,7 @@ const RaiseComplaint = () => {
   const { user } = useAuth();
   const [form, setForm] = useState({ category: '', description: '' });
   const [imagePreview, setImagePreview] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [errors, setErrors] = useState({});
@@ -24,13 +26,58 @@ const RaiseComplaint = () => {
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
+  /**
+   * Compress and convert image to base64 for storage.
+   * Max dimension: 800px. Quality: 0.7. This keeps it under ~100KB.
+   */
   const handleImage = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate file size (max 5MB raw)
+    if (file.size > 5 * 1024 * 1024) {
+      setToast('Error: Image must be less than 5MB.');
+      setTimeout(() => setToast(''), 4000);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Compress using canvas
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = (height / width) * MAX_DIM;
+            width = MAX_DIM;
+          } else {
+            width = (width / height) * MAX_DIM;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        setImagePreview(compressed);
+        setImageBase64(compressed);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    setImageBase64(null);
   };
 
   const handleSubmit = async (e) => {
@@ -52,11 +99,11 @@ const RaiseComplaint = () => {
         roomNumber: user.roomNumber,
         category: form.category,
         description: form.description,
-        image: imagePreview,
+        image: imageBase64,
       });
       setToast('Complaint submitted successfully!');
       setForm({ category: '', description: '' });
-      setImagePreview(null);
+      removeImage();
       setTimeout(() => setToast(''), 4000);
     } catch (err) {
       setToast('Error: ' + err.message);
@@ -129,28 +176,39 @@ const RaiseComplaint = () => {
 
           {/* Image upload */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Attach Image (optional)
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImage}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/40 dark:file:text-primary-300"
-            />
-            {imagePreview && (
-              <div className="mt-3">
+
+            {!imagePreview ? (
+              <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-900/10 transition-colors">
+                <HiOutlineCloudArrowUp className="h-10 w-10 text-gray-400 dark:text-gray-500 mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Click to upload an image
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  PNG, JPG up to 5MB
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImage}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="relative inline-block">
                 <img
                   src={imagePreview}
                   alt="Preview"
-                  className="h-40 rounded-lg object-cover border dark:border-gray-700"
+                  className="h-40 rounded-xl object-cover border border-gray-200 dark:border-gray-700"
                 />
                 <button
                   type="button"
-                  onClick={() => setImagePreview(null)}
-                  className="text-xs text-red-500 hover:underline mt-1"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-md"
                 >
-                  Remove
+                  <HiOutlineXMark className="h-4 w-4" />
                 </button>
               </div>
             )}

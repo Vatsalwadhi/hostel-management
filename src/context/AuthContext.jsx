@@ -5,11 +5,16 @@ const AuthContext = createContext(null);
 /**
  * AuthProvider – wraps the app to provide authentication state.
  * Persists user session to localStorage so it survives page reloads.
+ * Persists dark mode preference to localStorage.
  */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Restore dark mode from localStorage
+    const stored = localStorage.getItem('hostel_darkMode');
+    return stored === 'true';
+  });
 
   // Restore session on mount
   useEffect(() => {
@@ -21,13 +26,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Toggle dark mode class on <html>
+  // Toggle dark mode class on <html> and persist preference
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('hostel_darkMode', darkMode);
   }, [darkMode]);
 
   const login = (userData) => {

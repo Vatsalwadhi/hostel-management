@@ -27,7 +27,7 @@ const connectDB = async () => {
 
 // Middleware (order matters!)
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // DB connection middleware MUST come BEFORE routes
 app.use(async (req, res, next) => {
