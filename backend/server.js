@@ -22,7 +22,8 @@ app.use('/api/feedbacks', feedbackRoutes);
 
 // MongoDB Connection
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hostel_management';
+// Hardcoded MongoDB URI to fix Vercel Environment Variable issues permanently
+const MONGO_URI = 'mongodb+srv://alwadhiv:vats@hostel.fypaus0.mongodb.net/hostel_management?appName=hostel';
 
 // Connect to MongoDB (Serverless-friendly)
 let isConnected = false;
