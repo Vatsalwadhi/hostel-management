@@ -10,48 +10,41 @@ const feedbackRoutes = require('./routes/feedbacks');
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/complaints', complaintRoutes);
-app.use('/api/staff', staffRoutes);
-app.use('/api/feedbacks', feedbackRoutes);
-
 // MongoDB Connection
 const PORT = process.env.PORT || 5000;
-// Hardcoded MongoDB URI to fix Vercel Environment Variable issues permanently
 const MONGO_URI = 'mongodb+srv://alwadhiv:vats@hostel.fypaus0.mongodb.net/hostel_management?appName=hostel';
 
 // Connect to MongoDB (Serverless-friendly)
 let isConnected = false;
 const connectDB = async () => {
   if (isConnected) return;
-  
-  console.log("Attempting to connect. URI starts with:", MONGO_URI.substring(0, 15));
   const db = await mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of 30s
+    serverSelectionTimeoutMS: 5000
   });
   isConnected = db.connections[0].readyState;
   console.log('Connected to MongoDB');
 };
 
-// Middleware to ensure DB connection before handling requests
+// Middleware (order matters!)
+app.use(cors());
+app.use(express.json());
+
+// DB connection middleware MUST come BEFORE routes
 app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
   } catch (err) {
     console.error("DB Connection Failed:", err);
-    res.status(500).json({ 
-      message: "Database Connection Error", 
-      error: err.message,
-      uriPrefix: MONGO_URI.substring(0, 15)
-    });
+    res.status(500).json({ message: "Database Connection Error", error: err.message });
   }
 });
+
+// Routes (AFTER DB middleware)
+app.use('/api/auth', authRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/feedbacks', feedbackRoutes);
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {
