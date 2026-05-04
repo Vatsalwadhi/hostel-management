@@ -28,24 +28,33 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hostel_man
 let isConnected = false;
 const connectDB = async () => {
   if (isConnected) return;
-  try {
-    const db = await mongoose.connect(MONGO_URI);
-    isConnected = db.connections[0].readyState;
-    console.log('Connected to MongoDB');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-  }
+  
+  console.log("Attempting to connect. URI starts with:", MONGO_URI.substring(0, 15));
+  const db = await mongoose.connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of 30s
+  });
+  isConnected = db.connections[0].readyState;
+  console.log('Connected to MongoDB');
 };
 
 // Middleware to ensure DB connection before handling requests
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("DB Connection Failed:", err);
+    res.status(500).json({ 
+      message: "Database Connection Error", 
+      error: err.message,
+      uriPrefix: MONGO_URI.substring(0, 15)
+    });
+  }
 });
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {
-  connectDB().then(() => {
+  connectDB().catch(console.error).then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
